@@ -69,35 +69,28 @@ This file (including all top level keys) is optional.
 The default plugin search path is `~/.dial/plugins` and you can add additional search paths to your configuration file using the `plugin_search_paths` key:
 
 ```json
-...
-"plugin_search_paths": ["/absolute-path-to/my-plugin/out", ...]
-...
+"plugin_search_paths": ["/absolute-path-to/my-plugin/out"]
 ```
 
 To enable a plugin, add the shared library (`.dll`, `.so` or `.dylib`) to one of the folders in your `plugin_search_paths` and add an entry in your configuration file:
 
 ```json
-...
 "plugins": [
-  ...
   {
-    // Required. Omit the file-extension and the "lib" prefix.  For example, if your
-    // plugin file is named 'libmy-plugin.dylib' the correct value would be 'my-plugin'
     "name": "my-plugin",
-    // Optional, default null. Arguments passed to the plugin on initialization.
-    // Check the plugin's documentation for details
     "args": {},
-    // Optional, default true. Set to false to disable this plugin, but keep it in the
-    // configuration file
     "enabled": true,
-    // Optional, default false. Set to true to make dial not ask for confirmation before
-    // running a plugin function.
     "auto_confirm": false,
   }
-  ...
 ]
-...
 ```
+
+where
+
+- `"name"` -- Required. Omit the file-extension and the "lib" prefix. For example, if your plugin file is named 'libmy-plugin.dylib' the correct value would be 'my-plugin'
+- `"args"` -- Optional, default null. Arguments passed to the plugin on initialization. Check the plugin's documentation for details
+- `"enabled"` -- Optional, default true. Set to false to disable this plugin, but keep it in the configuration file
+- `"auto_confirm"` -- Optional, default false. Set to true to make dial not ask for confirmation before running a plugin function
 
 ### Creating plugins
 
