@@ -1,5 +1,7 @@
 const std = @import("std");
+const CredentialsParser = @import("credentials-parser.zig").CredentialsParser;
 const Credentials = @import("credentials.zig").Credentials;
+const ConfigParser = @import("config-parser.zig").ConfigParser;
 const Config = @import("config.zig").Config;
 const Request = @import("request.zig").Request;
 const PluginsManager = @import("plugins-manager.zig").PluginsManager;
@@ -115,11 +117,13 @@ pub fn main() !void {
         return error.MissingHomeEnvVar;
     };
 
-    const credentials = try Credentials.parse(allocator, home_path);
-    defer credentials.deinit();
+    var credentials_parser = try CredentialsParser.parse(allocator, home_path);
+    defer credentials_parser.deinit();
+    const credentials = credentials_parser.credentials;
 
-    const config = try Config.parse(allocator, home_path);
-    defer config.deinit();
+    var config_parser = try ConfigParser.parse(allocator, home_path);
+    defer config_parser.deinit();
+    const config = config_parser.config;
 
     const std_in = std.io.getStdIn();
     const std_out = std.io.getStdOut();

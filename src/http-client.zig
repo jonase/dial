@@ -266,6 +266,8 @@ pub const HttpClient = struct {
         var headers: ?*c.curl_slist = null;
 
         {
+            headers = c.curl_slist_append(headers, "Content-Type: application/json");
+
             const auth_header = try std.mem.concatWithSentinel(
                 allocator,
                 u8,
@@ -273,9 +275,8 @@ pub const HttpClient = struct {
                 0,
             );
             defer allocator.free(auth_header);
-
-            headers = c.curl_slist_append(headers, "Content-Type: application/json");
             headers = c.curl_slist_append(headers, auth_header);
+
             if (opts.credentials.openai_organization_id) |openai_organization_id| {
                 const org_header = try std.mem.concatWithSentinel(
                     allocator,
@@ -286,6 +287,7 @@ pub const HttpClient = struct {
                 defer allocator.free(org_header);
                 headers = c.curl_slist_append(headers, org_header);
             }
+
             if (c.curl_easy_setopt(curl, c.CURLOPT_HTTPHEADER, headers) != c.CURLE_OK) {
                 return error.CurlSetoptError;
             }
