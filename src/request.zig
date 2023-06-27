@@ -44,71 +44,17 @@ pub const Request = struct {
         // The name and arguments of a function that should be called, as generated
         // by the model.
         function_call: ?FunctionCall = null,
-
-        fn fromJson(value: std.json.Value) !Message {
-            switch (value) {
-                .object => |object| {
-                    const role = try Role.fromJson(object.get("role") orelse return error.ParseError);
-                    const content = try parseStringAllowNull(object.get("content"));
-                    const name = try parseStringAllowNull(object.get("name"));
-                    const function_call = try FunctionCall.fromJson(object.get("function_call"));
-
-                    return .{
-                        .role = role,
-                        .content = content,
-                        .name = name,
-                        .function_call = function_call,
-                    };
-                },
-                else => return error.ParseError,
-            }
-        }
     };
 
     pub const Function = struct {
         name: []const u8,
-        description: ?[]const u8,
-        parameters: ?std.json.Value,
-
-        fn fromJson(value: std.json.Value) !Function {
-            switch (value) {
-                .object => |object| {
-                    const name = try parseString(object.get("name") orelse return error.ParseError);
-                    const description = try parseStringAllowNull(object.get("description"));
-                    const parameters = object.get("parameters");
-                    return .{
-                        .name = name,
-                        .description = description,
-                        .parameters = parameters,
-                    };
-                },
-                else => return error.ParseError,
-            }
-        }
+        description: []const u8,
+        parameters: std.json.Value,
     };
 
     pub const FunctionCall = struct {
         name: []const u8,
         arguments: ?[]const u8,
-
-        fn fromJson(value: ?std.json.Value) !?FunctionCall {
-            if (value) |val| {
-                switch (val) {
-                    .object => |object| {
-                        const name = try parseString(object.get("name") orelse return error.ParseError);
-                        const arguments = try parseStringAllowNull(object.get("arguments"));
-                        return .{
-                            .name = name,
-                            .arguments = arguments,
-                        };
-                    },
-                    .null => return null,
-                    else => return error.ParseError,
-                }
-            } else {
-                return null;
-            }
-        }
     };
 
     pub const Role = enum {
@@ -131,36 +77,7 @@ pub const Request = struct {
         ) !void {
             try std.json.encodeJsonString(@tagName(role), options, out_stream);
         }
-
-        fn fromJson(value: std.json.Value) !Role {
-            switch (value) {
-                .string => |string| {
-                    return role_map.get(string) orelse error.ParseError;
-                },
-                else => return error.ParseError,
-            }
-        }
     };
-
-    pub fn parseFunctions(allocator: std.mem.Allocator, value: ?std.json.Value) !?[]const Request.Function {
-        if (value) |val| {
-            switch (val) {
-                .array => |array| {
-                    var array_list = std.ArrayList(Request.Function).init(allocator);
-                    defer array_list.deinit();
-
-                    for (array.items) |item| {
-                        try array_list.append(try Request.Function.fromJson(item));
-                    }
-                    return try array_list.toOwnedSlice();
-                },
-                .null => return null,
-                else => return error.ParseError,
-            }
-        } else {
-            return null;
-        }
-    }
 
     fn deinit(request: Request, allocator: std.mem.Allocator) void {
         allocator.free(request.messages);
@@ -168,30 +85,8 @@ pub const Request = struct {
             allocator.free(fns);
         }
     }
-
-    pub fn fromJson(allocator: std.mem.Allocator, value: std.json.Value) !Request {
-        switch (value) {
-            .object => |object| {
-                const model = try parseString(object.get("model") orelse return error.ParseError);
-                const messages = try parseMessages(allocator, object.get("messages") orelse return error.ParseError);
-                const functions = try parseFunctions(allocator, object.get("functions"));
-                const function_call = try FunctionCallRequestStrategy.fromJson(object.get("function_call"));
-                const stream = try parseBoolAllowNull(object.get("stream"));
-
-                return .{
-                    .model = model,
-                    .messages = messages,
-                    .functions = functions,
-                    .function_call = function_call,
-                    .stream = stream,
-                };
-            },
-            else => return error.ParseError,
-        }
-    }
 };
 
-// TODO Better naming,
 const FunctionCallRequestStrategy = union(enum) {
     pub const Strat = enum { none, auto };
 
@@ -199,25 +94,6 @@ const FunctionCallRequestStrategy = union(enum) {
     name: []const u8,
 
     const strat_map = std.ComptimeStringMap(Strat, .{.{ "none", .none, "auto", .auto }});
-
-    pub fn fromJson(value: ?std.json.Value) !?FunctionCallRequestStrategy {
-        if (value) |val| {
-            switch (val) {
-                .null => return null,
-                .string => |string| {
-                    const strat = strat_map.get(string) orelse return error.ParseError;
-                    return .{ .strat = strat };
-                },
-                .object => |object| {
-                    const name = try parseString(object.get("name") orelse return error.ParseError);
-                    return .{ .name = name };
-                },
-                else => return error.ParseError,
-            }
-        } else {
-            return null;
-        }
-    }
 
     pub fn jsonStringify(
         function_call_request_strategy: @This(),
@@ -238,49 +114,3 @@ const FunctionCallRequestStrategy = union(enum) {
         }
     }
 };
-
-fn parseMessages(allocator: std.mem.Allocator, value: std.json.Value) ![]const Request.Message {
-    switch (value) {
-        .array => |array| {
-            var array_list = std.ArrayList(Request.Message).init(allocator);
-            defer array_list.deinit();
-
-            for (array.items) |val| {
-                try array_list.append(try Request.Message.fromJson(val));
-            }
-            return try array_list.toOwnedSlice();
-        },
-        else => return error.parseError,
-    }
-}
-
-fn parseString(value: std.json.Value) ![]const u8 {
-    switch (value) {
-        .string => |string| return string,
-        else => return error.ParseError,
-    }
-}
-
-fn parseStringAllowNull(value: ?std.json.Value) !?[]const u8 {
-    if (value) |val| {
-        switch (val) {
-            .null => return null,
-            .string => |string| return string,
-            else => return error.ParseError,
-        }
-    } else {
-        return null;
-    }
-}
-
-fn parseBoolAllowNull(value: ?std.json.Value) !?bool {
-    if (value) |val| {
-        switch (val) {
-            .bool => |boolean| return boolean,
-            .null => return null,
-            else => return error.ParseError,
-        }
-    } else {
-        return null;
-    }
-}

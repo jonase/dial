@@ -27,7 +27,6 @@ pub const PluginsManager = struct {
                     try array_list.append(plugin);
                 }
             }
-
             break :blk try array_list.toOwnedSlice();
         };
 
@@ -36,11 +35,9 @@ pub const PluginsManager = struct {
         var function_map = std.StringHashMap(Plugin).init(allocator);
 
         for (plugins) |plugin| {
-            if (plugin.functions) |functions| {
-                try functions_array_list.appendSlice(functions);
-                for (functions) |function| {
-                    try function_map.putNoClobber(function.name, plugin);
-                }
+            try functions_array_list.appendSlice(plugin.parsed.value);
+            for (plugin.parsed.value) |function| {
+                try function_map.putNoClobber(function.name, plugin);
             }
         }
 

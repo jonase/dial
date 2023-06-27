@@ -53,8 +53,7 @@ const Plugin = struct {
         return @ptrCast(*Plugin, @alignCast(@alignOf(Plugin), handle));
     }
 
-    fn init(args: []const u8) std.mem.Allocator.Error!*Plugin {
-        _ = args;
+    fn init() std.mem.Allocator.Error!*Plugin {
         var gpa = std.heap.GeneralPurposeAllocator(.{}){};
         const allocator = gpa.allocator();
 
@@ -139,7 +138,9 @@ export fn dial_plugin_init(
     args: [*]const u8,
     handle: **anyopaque,
 ) c_int {
-    handle.* = Plugin.init(args[0..args_len]) catch {
+    _ = args;
+    _ = args_len;
+    handle.* = Plugin.init() catch {
         return c.DIAL_PLUGIN_ERROR_OUT_OF_MEMORY;
     };
 
