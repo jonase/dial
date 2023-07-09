@@ -125,9 +125,6 @@ const Command = union(Cmd) {
 
         var iter = std.mem.tokenizeScalar(u8, user_input, ' ');
 
-        const idx = std.mem.indexOf(u8, user_input, " ") orelse user_input.len;
-        _ = idx;
-
         if (command_map.get(iter.next().?)) |cmd| {
             switch (cmd) {
                 .clear => {
@@ -269,7 +266,7 @@ pub fn main() !void {
                     break :done;
                 },
                 .help => {
-                    _ = try writer.print(
+                    try writer.print(
                         \\
                         \\.help            Print this help message
                         \\.exit            Exit the program
@@ -349,6 +346,6 @@ pub fn main() !void {
                 else => return err,
             }
         };
-        _ = try writer.write("\n");
+        try writer.print("\n", .{});
     }
 }
