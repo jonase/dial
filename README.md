@@ -20,15 +20,6 @@ The executable will be found in `zig-out/bin/dial` and you can move it to your `
 $ dial
 Welcome to dial v0.0.1 (gpt-3.5-turbo-0613)
 Type ".help" for more information.
-user> .help
-
-.help         Print this help message
-.exit         Exit the program
-.clear        Clear the message history and start over
-.editor .e    Open an editor for prompt editing
-
-More information on https://github.com/jonase/dial
-
 user> Say this is a test
 This is a test.
 user> .exit
