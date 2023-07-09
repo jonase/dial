@@ -6,7 +6,7 @@
 
 ## Build
 
-Currently only tested on MacOS and zig version `0.11.0-dev.3803+7ad104227`. The only dependency is [`curl`](https://curl.se/).
+Currently only tested on MacOS and zig version `0.11.0-dev.3947+89396ff02`. The only dependency is [`curl`](https://curl.se/).
 
 ```sh
 $ zig build -Doptimize=ReleaseSafe

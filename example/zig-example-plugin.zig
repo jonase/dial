@@ -50,7 +50,7 @@ const Plugin = struct {
     ;
 
     fn cast(handle: *anyopaque) *Plugin {
-        return @ptrCast(*Plugin, @alignCast(@alignOf(Plugin), handle));
+        return @ptrCast(@alignCast(handle));
     }
 
     fn init() std.mem.Allocator.Error!*Plugin {

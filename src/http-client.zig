@@ -120,6 +120,7 @@ const ResponseHandler = struct {
     }
 
     fn handleResponse(response_handler: *ResponseHandler, response: Response) !void {
+        var allocator = response_handler.arena.allocator();
         if (response.choices.len > 0) {
             const choice = response.choices[0];
             const delta = choice.delta;
@@ -134,7 +135,7 @@ const ResponseHandler = struct {
             if (delta.function_call) |function_call| {
                 if (function_call.name) |name| {
                     response_handler.function_call = .{
-                        .name = name,
+                        .name = try allocator.dupe(u8, name),
                         .arguments = null,
                     };
                 }
@@ -172,9 +173,10 @@ const ResponseHandler = struct {
         nmemb: c_uint,
         opaque_user_data: *anyopaque,
     ) callconv(.C) c_uint {
-        var response_handler = @ptrCast(*ResponseHandler, @alignCast(@alignOf(ResponseHandler), opaque_user_data));
+        var response_handler: *ResponseHandler = @ptrCast(@alignCast(opaque_user_data));
 
-        var message = @ptrCast([*]u8, @alignCast(@alignOf(u8), data))[0 .. nmemb * size];
+        var message_ptr: [*]u8 = @ptrCast(data);
+        var message = message_ptr[0 .. nmemb * size];
 
         var iter = std.mem.splitSequence(u8, message, "\n");
 
@@ -227,13 +229,13 @@ pub const HttpClient = struct {
     curl: *c.CURL,
     headers: *c.curl_slist,
     message_history: *std.ArrayList(Request.Message),
-    plugins_manager: PluginsManager,
+    plugins_manager: *const PluginsManager,
 
     const HttpClientOptions = struct {
         credentials: Credentials,
         config: Config,
         message_history: *std.ArrayList(Request.Message),
-        plugins_manager: PluginsManager,
+        plugins_manager: *const PluginsManager,
         out: std.fs.File,
         in: std.fs.File,
         verbose: bool = false,
@@ -370,8 +372,10 @@ pub const HttpClient = struct {
                                     break :blk true;
                                 }
                                 try std.fmt.format(writer, "{s}({s})?\n[y/N] ", .{ function_call.name, arguments });
-                                var user_input = try root.readUserInput(reader);
-                                if (std.mem.eql(u8, user_input, "y")) {
+                                var user_input = std.ArrayList(u8).init(http_client.allocator);
+                                defer user_input.deinit();
+                                try root.readUserInput(reader, &user_input);
+                                if (std.mem.eql(u8, user_input.items, "y")) {
                                     break :blk true;
                                 }
                                 break :blk false;

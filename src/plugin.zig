@@ -68,12 +68,11 @@ pub const Plugin = struct {
         const free_result_fn = library.lookup(*FreeResultFn, "dial_plugin_free_result") orelse return error.SymbolNotFound;
 
         const handle = blk: {
-            std.debug.assert(root.scratch_fbs.pos == 0);
-            defer root.scratch_fbs.reset();
-            try std.json.stringify(plugin_config.args, .{}, root.scratch_fbs.writer());
-            const args_str = root.scratch_fbs.getWritten();
+            var args_array_list = std.ArrayList(u8).init(allocator);
+            defer args_array_list.deinit();
+            try std.json.stringify(plugin_config.args, .{}, args_array_list.writer());
             var handle: *anyopaque = undefined;
-            if (init_fn(args_str.len, args_str.ptr, &handle) != 0) {
+            if (init_fn(args_array_list.items.len, args_array_list.items.ptr, &handle) != 0) {
                 return error.PluginInitError;
             }
             break :blk handle;
