@@ -1,11 +1,11 @@
 const std = @import("std");
-const CredentialsParser = @import("credentials-parser.zig").CredentialsParser;
-const Credentials = @import("credentials.zig").Credentials;
-const ConfigParser = @import("config-parser.zig").ConfigParser;
-const Config = @import("config.zig").Config;
-const Request = @import("request.zig").Request;
-const PluginsManager = @import("plugins-manager.zig").PluginsManager;
-const HttpClient = @import("http-client.zig").HttpClient;
+const CredentialsParser = @import("CredentialsParser.zig");
+const Credentials = @import("Credentials.zig");
+const ConfigParser = @import("ConfigParser.zig");
+const Config = @import("Config.zig");
+const Request = @import("Request.zig");
+const PluginsManager = @import("PluginsManager.zig");
+const HttpClient = @import("HttpClient.zig");
 
 const version = "0.0.1";
 
