@@ -9,6 +9,19 @@ const HttpClient = @import("HttpClient.zig");
 
 const version = "0.0.1";
 
+fn printUsage(writer: anytype) !void {
+    try writer.print(
+        \\Usage: dial [options]
+        \\
+        \\Options:
+        \\-h, --help   Print this help message
+        \\--system     Optional system message
+        \\
+        \\More information at https://github.com/jonase/dial
+        \\
+    , .{});
+}
+
 pub fn readUserInput(reader: anytype, user_input: *std.ArrayList(u8)) !void {
     reader.readUntilDelimiterArrayList(user_input, '\n', std.math.maxInt(usize)) catch |err| switch (err) {
         error.EndOfStream => return,
@@ -74,8 +87,19 @@ fn readUserInputFromEditor(
     }
 }
 
+fn hasSystemMessage(message_history: *std.ArrayList(Request.Message)) bool {
+    return message_history.items.len > 0 and message_history.items[0].role == .system;
+}
+
 fn clearHistory(allocator: std.mem.Allocator, message_history: *std.ArrayList(Request.Message)) void {
-    for (message_history.items) |message| {
+    const has_system_message = hasSystemMessage(message_history);
+
+    var messages = if (has_system_message)
+        message_history.items[1..]
+    else
+        message_history.items;
+
+    for (messages) |message| {
         if (message.content) |content| {
             allocator.free(content);
         }
@@ -83,7 +107,8 @@ fn clearHistory(allocator: std.mem.Allocator, message_history: *std.ArrayList(Re
             allocator.free(name);
         }
     }
-    message_history.clearRetainingCapacity();
+
+    message_history.shrinkRetainingCapacity(if (has_system_message) 1 else 0);
 }
 
 const Cmd = enum {
@@ -196,13 +221,49 @@ pub fn main() !void {
     const std_in = std.io.getStdIn();
     const std_out = std.io.getStdOut();
 
+    const reader = std_in.reader();
+    const writer = std_out.writer();
+
     var plugins_manager = try PluginsManager.init(allocator, config.plugin_search_paths, config.plugins);
     defer plugins_manager.deinit();
 
     var message_history = std.ArrayList(Request.Message).init(allocator);
     defer {
         clearHistory(allocator, &message_history);
+        if (hasSystemMessage(&message_history)) {
+            if (message_history.items[0].content) |content| {
+                allocator.free(content);
+            }
+        }
         message_history.deinit();
+    }
+
+    {
+        const args = try std.process.argsAlloc(allocator);
+        defer std.process.argsFree(allocator, args);
+        var i: usize = 1;
+        while (i < args.len) : (i += 1) {
+            const arg = args[i];
+            if (std.mem.eql(u8, arg, "-h") or std.mem.eql(u8, arg, "--help")) {
+                try printUsage(writer);
+                return std.process.cleanExit();
+            } else if (std.mem.eql(u8, arg, "--system")) {
+                i += 1;
+                if (i >= args.len) {
+                    std.log.err("'--system' requires a system message.\n", .{});
+                    try printUsage(writer);
+                    std.process.exit(1);
+                }
+                try message_history.append(.{
+                    .role = .system,
+                    .content = try allocator.dupe(u8, args[i]),
+                });
+            } else {
+                std.log.err("Unknown command: {s}", .{arg});
+                try printUsage(writer);
+                std.process.exit(1);
+            }
+        }
     }
 
     var http_client = try HttpClient.init(allocator, .{
@@ -216,8 +277,17 @@ pub fn main() !void {
     });
     defer http_client.deinit();
 
-    const reader = std_in.reader();
-    const writer = std_out.writer();
+    if (!std.fs.File.isTty(std_in)) {
+        const content = try std_in.readToEndAlloc(allocator, std.math.maxInt(usize));
+
+        try http_client.submit(.{
+            .role = .user,
+            .content = content,
+        });
+
+        try writer.print("\n", .{});
+        return std.process.cleanExit();
+    }
 
     try writer.print(
         \\Welcome to dial v{s} ({s})
